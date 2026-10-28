@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 from pathlib import Path
 
 SOURCE = Path("rules.list")
+MAPPING_FILE = Path("config/policy-map.json")
 OUTPUT = Path("generated/shadowrocket.module")
+CLIENT = "shadowrocket"
 
 SUPPORTED_TYPES = {
     "DOMAIN",
@@ -33,9 +36,33 @@ SUPPORTED_TYPES = {
     "NOT",
     "FINAL",
 }
+BUILTIN_POLICIES = {"DIRECT", "REJECT", "REJECT-DROP", "PROXY"}
+LOGICAL_TYPES = {"AND", "OR", "NOT"}
 
 
-def validate_rule(line: str, line_number: int) -> str:
+def load_policy_map() -> dict[str, str]:
+    if not MAPPING_FILE.is_file():
+        raise SystemExit(f"mapping file not found: {MAPPING_FILE}")
+    try:
+        data = json.loads(MAPPING_FILE.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"invalid mapping file {MAPPING_FILE}: {exc}") from exc
+
+    mapping = data.get(CLIENT)
+    if not isinstance(mapping, dict) or not mapping:
+        raise SystemExit(f"{MAPPING_FILE} must contain a non-empty {CLIENT!r} object")
+    if any(
+        not isinstance(source, str)
+        or not source.strip()
+        or not isinstance(target, str)
+        or not target.strip()
+        for source, target in mapping.items()
+    ):
+        raise SystemExit(f"{MAPPING_FILE}: all {CLIENT} mappings must be non-empty strings")
+    return {source.strip(): target.strip() for source, target in mapping.items()}
+
+
+def validate_rule(line: str, line_number: int, policy_map: dict[str, str]) -> str:
     parts = [part.strip() for part in line.split(",")]
     rule_type = parts[0].upper()
 
@@ -58,6 +85,23 @@ def validate_rule(line: str, line_number: int) -> str:
                 f"line {line_number}: {rule_type} requires an IPv{expected_version} network"
             )
 
+    if rule_type == "FINAL":
+        policy_index = 1
+    elif rule_type in LOGICAL_TYPES:
+        policy_index = -1
+    else:
+        policy_index = 2
+
+    source_policy = parts[policy_index]
+    if source_policy in policy_map:
+        parts[policy_index] = policy_map[source_policy]
+    elif source_policy.upper() in BUILTIN_POLICIES:
+        parts[policy_index] = source_policy.upper()
+    else:
+        raise ValueError(
+            f"line {line_number}: policy {source_policy!r} has no {CLIENT} mapping in {MAPPING_FILE}"
+        )
+
     return ",".join(parts)
 
 
@@ -65,6 +109,7 @@ def main() -> None:
     if not SOURCE.is_file():
         raise SystemExit(f"input file not found: {SOURCE}")
 
+    policy_map = load_policy_map()
     rules: list[str] = []
     errors: list[str] = []
     for line_number, raw_line in enumerate(
@@ -74,7 +119,7 @@ def main() -> None:
         if not line or line.startswith(("#", ";", "//")):
             continue
         try:
-            rules.append(validate_rule(line, line_number))
+            rules.append(validate_rule(line, line_number, policy_map))
         except ValueError as exc:
             errors.append(str(exc))
 
@@ -95,7 +140,7 @@ def main() -> None:
     )
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(module, encoding="utf-8", newline="\n")
-    print(f"generated {OUTPUT} with {len(rules)} rule(s)")
+    print(f"generated {OUTPUT} with {len(rules)} rule(s) for {CLIENT}")
 
 
 if __name__ == "__main__":
