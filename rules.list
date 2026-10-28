@@ -3,5 +3,4 @@
 # 每行一条规则，以 # 开头的行为注释
 
 DOMAIN-SUFFIX,tktn.be,美国节点
-DOMAIN-SUFFIX,abc.com,香港节点
-DOMAIN-SUFFIX,xyz.com,DIRECT
+DOMAIN-SUFFIX,dmm.co.jp,日本节点
