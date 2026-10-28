@@ -1,0 +1,51 @@
+name: Generate Shadowrocket module
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - rules.list
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: generate-shadowrocket-module-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate and validate module
+        run: python scripts/generate_shadowrocket.py
+
+      - name: Verify required module sections
+        run: |
+          test -s generated/shadowrocket.module
+          grep -Fxq '#!name=myrule' generated/shadowrocket.module
+          grep -Fxq '[Rule]' generated/shadowrocket.module
+
+      - name: Commit generated module when changed
+        run: |
+          git add generated/shadowrocket.module
+          if git diff --cached --quiet; then
+            echo "generated/shadowrocket.module is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update generated Shadowrocket module"
+          git push
