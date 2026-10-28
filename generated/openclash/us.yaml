@@ -1,0 +1,3 @@
+# policy: 美国-自动
+payload:
+  - "DOMAIN-SUFFIX,tktn.be"
