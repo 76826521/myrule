@@ -1,4 +1,4 @@
-name: Generate Shadowrocket module
+name: Generate client rules
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: generate-shadowrocket-module-${{ github.ref }}
+  group: generate-client-rules-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -31,23 +31,28 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Generate and validate module
+      - name: Generate and validate client rules
         run: python scripts/generate_shadowrocket.py
 
-      - name: Verify required module sections
+      - name: Verify generated files
         run: |
           test -s generated/shadowrocket.module
           grep -Fxq '#!name=myrule' generated/shadowrocket.module
           grep -Fxq '[Rule]' generated/shadowrocket.module
+          find generated/openclash -type f -name '*.yaml' -size +0c -print -quit | grep -q .
+          for file in generated/openclash/*.yaml; do
+            grep -Fxq 'payload:' "$file"
+          done
 
-      - name: Commit generated module when changed
+      - name: Commit generated files when changed
         run: |
           git add generated/shadowrocket.module
+          git add -A generated/openclash
           if git diff --cached --quiet; then
-            echo "generated/shadowrocket.module is already up to date"
+            echo "generated client rules are already up to date"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Update generated Shadowrocket module"
+          git commit -m "Update generated client rules"
           git push
