@@ -1,3 +1,4 @@
 # policy: 日本-自动
 payload:
   - "DOMAIN-SUFFIX,dmm.co.jp"
+  - "DOMAIN-SUFFIX,dmm.com"
