@@ -1,0 +1,6 @@
+#!name=myrule
+#!desc=由 GitHub Actions 从 rules.list 自动生成，请勿手动编辑
+
+[Rule]
+DOMAIN-SUFFIX,tktn.be,美国节点
+DOMAIN-SUFFIX,dmm.co.jp,日本节点
