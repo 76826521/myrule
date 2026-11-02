@@ -16,7 +16,7 @@
   "config/min-proxy-card-width": "155",
   "config/swipe-in-tabs": "false",
   "config/import-settings-url": "",
-  "config/proxy-preview-type": "dots",
+  "config/proxy-preview-type": "auto",
   "config/use-smart-group-sort": "true",
   "config/table-width-mode": "auto",
   "config/proxy-group-icon-margin": "5",
